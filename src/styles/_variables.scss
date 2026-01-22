@@ -1,0 +1,31 @@
+// src/styles/_variables.scss
+
+// 这里的变量名和值完全来自你提供的 HTML
+$bg: #f6f8ff;
+$panel: #ffffff;
+$panel-2: #f2f5ff;
+$text: #1f2a44;
+$muted: #7a86a6;
+$muted-2: #9aa5c3;
+$line: #e8ecff;
+$brand: #5a7bff;
+$brand-2: #7a4bff;
+$shadow: 0 14px 40px rgba(28, 43, 89, .10);
+$shadow-soft: 0 10px 26px rgba(28, 43, 89, .08);
+$radius-xl: 22px;
+$radius-lg: 18px;
+$radius-md: 14px;
+
+// 我们顺便定义成 CSS 变量，方便以后在浏览器调试
+:root {
+  --bg: #{$bg};
+  --panel: #{$panel};
+  --panel-2: #{$panel-2};
+  --text: #{$text};
+  --muted: #{$muted};
+  --line: #{$line};
+  --brand: #{$brand};
+  --brand-2: #{$brand-2};
+  --shadow: #{$shadow};
+  --radius-xl: #{$radius-xl};
+}

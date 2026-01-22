@@ -1,0 +1,16 @@
+@import "./variables";
+
+html, body, #app {
+  height: 100vh; // 强制占满整个屏幕高度
+  width: 100vw;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  // 这里是甲方的渐变色
+  background: linear-gradient(180deg, #f7f9ff 0%, #f3f6ff 100%);
+  color: var(--text);
+  overflow: hidden;
+}
