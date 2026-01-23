@@ -1,31 +1,42 @@
 // src/styles/_variables.scss
 
-// 这里的变量名和值完全来自你提供的 HTML
-$bg: #f6f8ff;
+$bg: #F4F7FE;
 $panel: #ffffff;
-$panel-2: #f2f5ff;
-$text: #1f2a44;
+$text: #1b2559;  // <--- 确保这一行在最前面
 $muted: #7a86a6;
-$muted-2: #9aa5c3;
 $line: #e8ecff;
 $brand: #5a7bff;
-$brand-2: #7a4bff;
-$shadow: 0 14px 40px rgba(28, 43, 89, .10);
-$shadow-soft: 0 10px 26px rgba(28, 43, 89, .08);
-$radius-xl: 22px;
-$radius-lg: 18px;
-$radius-md: 14px;
-
-// 我们顺便定义成 CSS 变量，方便以后在浏览器调试
 :root {
+  /* --- 颜色系统 (Colors) --- */
   --bg: #{$bg};
   --panel: #{$panel};
-  --panel-2: #{$panel-2};
+  --panel-2: #f2f5ff;
   --text: #{$text};
-  --muted: #{$muted};
-  --line: #{$line};
+  --text-main: #1b2559;
+  --muted: #7a86a6;
+  --muted-2: #9aa5c3;
+  --line: #e8ecff;
   --brand: #{$brand};
-  --brand-2: #{$brand-2};
-  --shadow: #{$shadow};
-  --radius-xl: #{$radius-xl};
+  --brand-2: #7a4bff;
+
+  /* --- 阴影与圆角 (Shadows & Radius) --- */
+  --shadow: 0 14px 40px rgba(28, 43, 89, 0.1);
+  --shadow-soft: 0 10px 26px rgba(28, 43, 89, 0.08);
+  --radius-xl: 22px;
+  --radius-lg: 18px;
+  --radius-md: 14px;
+
+  /* --- 字号规范 (Font Sizes - SaaS Max 24px) --- */
+  --fs-h1: 24px;      /* 品牌 / 页面大标题 */
+  --fs-h2: 20px;      /* 模块主标题 */
+  --fs-h3: 16px;      /* 卡片 / 弹窗标题 */
+  --fs-base: 14px;    /* 标准正文 / 组件名 */
+  --fs-small: 12px;   /* 副标题 / 描述 */
+  --fs-tiny: 11px;    /* 极小提示 */
+
+  /* --- 字重规范 (Font Weights) --- */
+  --fw-black: 800;
+  --fw-bold: 700;
+  --fw-semibold: 600;
+  --fw-regular: 400;
 }
