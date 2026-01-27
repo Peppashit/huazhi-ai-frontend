@@ -181,6 +181,7 @@ const handleModeChange = (mode: string) => {
   overflow: hidden;
 }
 
+
 .main {
   position: relative;
   display: flex;

@@ -48,10 +48,18 @@ const searchQuery = ref('')
     <!-- 底部用户信息 -->
     <div class="side-footer">
       <div class="user">
-        <div class="avatar">李</div>
+          <img src="@/assets/user.png" alt="用户头像" class="user-avatar" />
         <div class="name">李丽</div>
       </div>
-      <button class="logout">⎋</button>
+        <button class="logout" title="退出登录">
+  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+    <polyline points="16 17 21 12 16 7"></polyline>
+    <line x1="21" y1="12" x2="9" y2="12"></line>
+  </svg>
+</button>
+    
+  
     </div>
   </div>
 </template>
@@ -69,13 +77,16 @@ const searchQuery = ref('')
   align-items: center;
   gap: 10px;
   padding: 6px 8px 12px;
-  .logo {
-    width: 34px; height: 34px;
-    border-radius: 12px;
-    background: radial-gradient(circle at 30% 30%, #8ad5ff, #5a7bff 58%, #7a4bff);
-    display: grid; place-items: center;
-    color: #fff; font-weight: 800;
-    box-shadow: 0 10px 20px rgba(90, 123, 255, 0.25);
+   .brand-logo {
+    
+    height: 20px;      
+    width: auto;      
+    
+  
+    border-radius: 6px; 
+    object-fit: contain;
+    
+    vertical-align: middle; 
   }
   h1 {
     font-size: 18px; margin: 0; letter-spacing: 0.3px;
@@ -128,7 +139,16 @@ const searchQuery = ref('')
     }
   }
 }
-
+    .user-avatar {
+    width: 36px;     
+    height: 36px;
+    border-radius: 12px; 
+    object-fit: cover;  
+    
+    border: 1px solid var(--line);
+  }
+    .name { font-size: var(--fs-h3); font-weight: 600; }
+  
 .side-footer {
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 6px 0; border-top: 1px solid var(--line);
@@ -141,10 +161,29 @@ const searchQuery = ref('')
     }
     .name { font-size: 14px; font-weight: 600; }
   }
-  .logout {
-    width: 34px; height: 34px; border-radius: 10px;
-    border: 1px solid var(--line); background: none;
-    cursor: pointer; color: var(--muted);
+    .logout {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #fff; 
+  cursor: pointer;
+  color: #93a0c0;   
+  
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  &:hover {
+    background:#fff; // 鼠标悬停变浅红
+    color: black;      // 图标变红
+    border-color:#dde4ff;
+  }
+  svg {
+    display: block;
   }
 }
+}
+
 </style>
