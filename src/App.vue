@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { ref, nextTick } from 'vue'
 import HistorySidebar from './components/HistorySidebar.vue'
 import CatalogPanel from './components/CatalogPanel.vue'
 import MessageBubble from './components/MessageBubble.vue'
-import { ref } from 'vue'
 import Chathead from './components/Chathead.vue'
 import ChatInput from './components/ChatInput.vue'
+
+// --- 1. 数据定义 ---
 const messages = ref([
   {
     role: 'user',
@@ -21,95 +23,110 @@ const messages = ref([
     explanation: '已为您查询到本月销量排名前三的品类。'
   }
 ])
-// 1.绑定选中值
-const selectedKey = ref('ai');
 
-// 监听选中变化（预留接口）
-const handleSegChange = (aiModel) => {
-  console.log('外部监听选中项：', aiModel);
-};
-// 2. 对接组件预留的接口（核心：处理业务逻辑/调用后端接口）
+const selectedKey = ref('ai')
+const chatScrollRef = ref<HTMLElement | null>(null) // 绑定滚动容器的引用
+
+// --- 2. 核心逻辑处理 ---
+
 /**
- * 处理模式切换（自动/手动模块匹配）
- * @param {string} mode - auto（自动） / manual（手动）
+ * 滚动到底部函数
  */
-const handleModeChange = (mode) => {
-  console.log('当前选择的匹配模式：', mode);
-  // 这里对接后端接口示例（预留）
-  // axios.post('/api/set-match-mode', { mode }).then(res => {
-  //   console.log('模式设置成功：', res.data);
-  // });
-};
-/**
- * 处理发送文本
- * @param {object} data - { content: 输入的文本, mode: 当前选择的模式 }
- */
-const handleSendText = (data) => {
-  console.log('发送的内容：', data.content);
-  console.log('发送时的匹配模式：', data.mode);
-  // 这里对接发送消息的后端接口（预留）
-  // axios.post('/api/send-message', {
-  //   content: data.content,
-  //   matchMode: data.mode
-  // }).then(res => {
-  //   console.log('消息发送成功，返回结果：', res.data);
-  // });
-};
-/**
- * 处理回到底部的操作
- */
-const handleScrollToBottom = () => {
-  console.log('触发回到底部操作');
+const scrollToBottom = async () => {
+  // nextTick 确保在 Vue 更新完 DOM（即新消息渲染出来）后再执行滚动
+  await nextTick()
   if (chatScrollRef.value) {
-    chatScrollRef.value.scrollTop = chatScrollRef.value.scrollHeight;
+    chatScrollRef.value.scrollTo({
+      top: chatScrollRef.value.scrollHeight,
+      behavior: 'smooth' // 平滑滚动
+    })
   }
-};
-  
-  // 2. 对接后端接口（如果需要）（预留）
-  // axios.get('/api/get-bottom-data').then(res => {
-  //   console.log('获取底部数据成功：', res.data);
-  // });
+}
 
+/**
+ * 处理发送文本（由 ChatInput 组件触发）
+ * @param {object} data - { content: 输入内容, mode: 当前模式 }
+ */
+const handleSendText = (data: { content: string; mode: string }) => {
+  if (!data.content.trim()) return
+
+  // 1. 将用户输入的消息推送到列表
+  messages.value.push({
+    role: 'user',
+    content: data.content
+  })
+
+  // 2. 触发滚动
+  scrollToBottom()
+
+  // 3. 模拟后端/AI 回复（演示用）
+  setTimeout(() => {
+    messages.value.push({
+      role: 'assistant',
+      content: '正在处理您的请求...',
+      explanation: `当前执行模式：${data.mode === 'auto' ? '自动匹配' : '手动匹配'}`
+    })
+    scrollToBottom()
+  }, 800)
+}
+
+/**
+ * 处理模式切换
+ */
+const handleModeChange = (mode: string) => {
+  console.log('当前选择的匹配模式：', mode)
+}
+
+/**
+ * 切换 AI 模型
+ */
+const handleSegChange = (aiModel: string) => {
+  console.log('外部监听选中项：', aiModel)
+}
 </script>
 
 <template>
   <div class="app">
-    <!-- 左侧 -->
+    <!-- 左侧：历史记录 -->
     <aside class="sidebar">
       <HistorySidebar />
     </aside>
     
-    <!-- 中间 -->
+    <!-- 中间：主聊天区 -->
     <main class="main">
       <header class="chat-header">
-        <!-- 使用封装的分段选择器组件 -->
-      <Chathead
-      v-model="selectedKey"
-      :options="[
-        { key: 'ai', label: '华智Ai', icon: '✨' },
-        { key: 'ultra', label: '华智Ultra', icon: '⚡' }
-      ]"
-      @change="handleSegChange"
-      />
+        <Chathead
+          v-model="selectedKey"
+          :options="[
+            { key: 'ai', label: '华智Ai', icon: '✨' },
+            { key: 'ultra', label: '华智Ultra', icon: '⚡' }
+          ]"
+          @change="handleSegChange"
+        />
       </header>
 
-      <div class="chat-scroll">
-      <!-- 遍历渲染所有消息卡片 -->
-      <MessageBubble
-      />
+      <!-- 聊天内容滚动区 -->
+      <div class="chat-scroll" ref="chatScrollRef">
+        <!-- 遍历渲染消息 -->
+        <MessageBubble
+          v-for="(item, index) in messages"
+          :key="index"
+          :data="item"
+        />
+        <!-- 底部占位符：防止最后一条消息被输入框遮挡 -->
+        <div class="scroll-bottom-pad"></div>
       </div>
       
       <div class="chat-input">
         <ChatInput
-        @mode-change="handleModeChange"
-        @send-text="handleSendText"
-        @scroll-to-bottom="handleScrollToBottom"
-       />
+          @mode-change="handleModeChange"
+          @send-text="handleSendText"
+          @scroll-to-bottom="scrollToBottom"
+        />
       </div>
-      
     </main>
 
-    <!-- 右侧 -->
+    <!-- 右侧：目录/详情面板 -->
     <aside class="right">
       <CatalogPanel />
     </aside>
@@ -117,6 +134,7 @@ const handleScrollToBottom = () => {
 </template>
 
 <style lang="scss">
+// 全局变量建议在其他 CSS 文件定义，这里保留布局逻辑
 .app {
   height: 100vh;
   display: grid;
@@ -129,9 +147,9 @@ const handleScrollToBottom = () => {
 }
 
 .sidebar, .right {
-  background: var(--panel);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow);
+  background: #ffffff; // 建议改回具体颜色或变量
+  border-radius: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
   overflow: hidden;
 }
 
@@ -140,12 +158,12 @@ const handleScrollToBottom = () => {
   display: flex;
   flex-direction: column;
   height: 100%;
+  overflow: hidden; // 关键：防止主容器溢出
   
   .chat-header {
     text-align: center;
     padding: 10px;
     flex-shrink: 0;
-    h2 { margin: 0; color: var(--text); font-size: 22px; }
   }
  .chat-scroll {
     flex: 1; 
@@ -155,7 +173,7 @@ const handleScrollToBottom = () => {
     padding-bottom: 96px;
   }
 
-// 固定底部输入框
+  // 固定底部输入框
   .chat-input {
       position: absolute; /* 脱离文档流，悬浮在其他内容上 */
       bottom: 0; /* 距离父容器底部 0px */
@@ -164,6 +182,7 @@ const handleScrollToBottom = () => {
       padding: 16px;
       flex-shrink: 0;
       z-index: 20;
+      background: linear-gradient(180deg, rgba(247,249,255,0) 0%, rgba(247,249,255,1) 50%); // 增加渐变遮罩感
   }
 }
 </style>
