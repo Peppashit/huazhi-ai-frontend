@@ -1,4 +1,5 @@
 <script setup lang="ts">
+
 import { ref, watch } from 'vue'
 
 // 1. 定义数据结构
@@ -7,6 +8,7 @@ interface Feature { id: string; name: string; desc: string; sql: string }
 interface Module { id: string; name: string; tables: TableInfo[]; features: Feature[] }
 
 // 2. 模拟数据（为 tables 增加了 excluded 属性）
+
 const modules = ref<Module[]>([
   {
     id: 'm_sales',
@@ -14,6 +16,7 @@ const modules = ref<Module[]>([
     tables: [
       { name: 'orders', desc: '订单主表', excluded: false },
       { name: 'products', desc: '商品维表', excluded: false }
+
     ],
     features: [
       { id: 'f1', name: '品类销量排行', desc: '统计本月销量Top10', sql: 'SELECT...' },
@@ -23,7 +26,9 @@ const modules = ref<Module[]>([
   {
     id: 'm_supply',
     name: '库存与供应链模块',
+
     tables: [{ name: 'inventory', desc: '库存事实表', excluded: false }],
+
     features: [{ id: 'f3', name: '库存预警', desc: '低于安全库存的SKU', sql: 'SELECT...' }]
   }
 ])
@@ -45,6 +50,7 @@ const handleExcludeChange = () => {
 }
 
 // 控制展开/折叠
+
 const collapsedModules = ref<Set<string>>(new Set())
 const toggleModule = (id: string) => {
   if (collapsedModules.value.has(id)) collapsedModules.value.delete(id)
@@ -59,6 +65,7 @@ const handleAction = (action: string, item: Feature) => {
   } else {
     console.log(`${action}: ${item.name}`)
   }
+
 }
 </script>
 
