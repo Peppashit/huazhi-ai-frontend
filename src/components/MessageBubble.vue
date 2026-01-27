@@ -416,5 +416,6 @@ const handlePageChange = (page) => {
 .page-btn:hover:not(:disabled) {
   background: #f9fafb;
   border-color: #d1d5db;
+
 }
 </style>

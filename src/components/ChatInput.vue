@@ -1,4 +1,5 @@
 <script setup lang="ts">
+
 import { ref, reactive, onMounted } from 'vue';
 
 // 输入框内容
@@ -338,5 +339,6 @@ onMounted(() => {
 
 .scroll-bottom-btn:hover {
   background: #f9fafb;
+
 }
 </style>

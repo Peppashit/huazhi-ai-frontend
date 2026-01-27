@@ -5,6 +5,7 @@ import MessageBubble from './components/MessageBubble.vue'
 import { ref } from 'vue'
 import Chathead from './components/Chathead.vue'
 import ChatInput from './components/ChatInput.vue'
+
 const messages = ref([
   {
     role: 'user',
@@ -21,6 +22,7 @@ const messages = ref([
     explanation: '已为您查询到本月销量排名前三的品类。'
   }
 ])
+
 // 1.绑定选中值
 const selectedKey = ref('ai');
 
@@ -70,6 +72,7 @@ const handleScrollToBottom = () => {
   //   console.log('获取底部数据成功：', res.data);
   // });
 
+
 </script>
 
 <template>
@@ -106,7 +109,6 @@ const handleScrollToBottom = () => {
         @scroll-to-bottom="handleScrollToBottom"
        />
       </div>
-      
     </main>
 
     <!-- 右侧 -->
