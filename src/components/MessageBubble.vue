@@ -292,7 +292,7 @@ const handlePageChange = (page) => {
   border: 1px solid #eef0f5;
   border-radius: 0 16px 16px 16px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-  overflow: hidden; // 确保内部部分不会超出圆角
+  overflow: hidden; /* 确保内部部分不会超出圆角 */
   display: flex;
   flex-direction: column;
   gap: 6px;
