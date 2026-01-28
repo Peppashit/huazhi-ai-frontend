@@ -131,7 +131,7 @@ const handleModeChange = (mode: string) => {
       </header>
 
       <!-- 聊天内容滚动区 -->
-      <div class="chat-scroll" ref="chatScrollRef">
+      <div class="chat-scroll" ref="chatScrollRef" >
         <!-- 遍历渲染消息 -->
         <MessageBubble
           v-for="(item, index) in messages"

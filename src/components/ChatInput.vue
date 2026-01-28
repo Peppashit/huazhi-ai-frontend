@@ -4,7 +4,8 @@ import { ref, reactive, onMounted } from 'vue';
 
 // 输入框内容
 const inputValue = ref('');
-
+// 聊天列表容器引用
+const chatListRef = ref<HTMLDivElement | null>(null);
 // 下拉菜单显示状态
 const showPopover = ref(false);
 
@@ -60,9 +61,20 @@ const handleSendText = () => {
 
 // 滚动到底部
 const handleScrollToBottom = () => {
-  // 预留接口：滚动到底部回调
-  if (window.onScrollToBottom) {
-    window.onScrollToBottom();
+  if (chatListRef.value) {
+    // 瞬间滚动到底部（推荐）
+    chatListRef.value.scrollTop = chatListRef.value.scrollHeight;
+    // 可选：平滑滚动（取消注释启用）
+    // chatListRef.value.scrollTo({
+    //   top: chatListRef.value.scrollHeight,
+    //   behavior: 'smooth'
+    // });
+  } else {
+    // 兼容body滚动场景
+    window.scrollTo({
+      top: document.body.scrollHeight,
+      behavior: 'smooth'
+    });
   }
 };
 
