@@ -191,8 +191,7 @@ const handlePageChange = (page) => {
 /* 整体聊天容器：区分用户/AI 卡片间距 */
 .chat-container {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
+  margin-bottom: 24px;
   width: 100%;
   padding: 8px;
 }
@@ -268,10 +267,7 @@ const handlePageChange = (page) => {
   font-weight: 500;
 }
 
-.mode-tag.primary {
-  background: #e0f2fe;
-  color: #0ea5e9;
-}
+.message-content { max-width: 85%; }
 
 .info-title {
   font-size: 13px;
@@ -290,7 +286,13 @@ const handlePageChange = (page) => {
   font-weight: 500;
 }
 
-.table-tags {
+/* --- AI 一体化大对话框核心样式 --- */
+.assistant-unified-card {
+  background: #ffffff;
+  border: 1px solid #eef0f5;
+  border-radius: 0 16px 16px 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+  overflow: hidden; // 确保内部部分不会超出圆角
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -469,9 +471,10 @@ const handlePageChange = (page) => {
   top: 0;
   z-index: 10;
 }
-
-.result-table td {
-  color: #1f2937;
+.explanation-text { font-size: 14px; color: #4b5563; line-height: 1.6; }
+.table-tags {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;
+  .table-tag { font-size: 11px; background: #f3f4f6; padding: 2px 8px; border-radius: 4px; color: #6b7280; }
 }
 
 .pagination {
@@ -483,9 +486,22 @@ const handlePageChange = (page) => {
   color: #6b7280;
 }
 
-.page-buttons {
-  display: flex;
-  gap: 8px;
+/* 表格区 */
+.table-section {
+  .section-header {
+    display: flex; justify-content: space-between; margin-bottom: 8px;
+    .section-label { font-size: 12px; color: #94a3b8; font-weight: 500; }
+  }
+  .table-container {
+    overflow-x: auto;
+    border: 1px solid #f0f2f5;
+    border-radius: 6px;
+    table {
+      width: 100%; border-collapse: collapse; font-size: 13px;
+      th { background: #f9fafb; padding: 10px; text-align: left; color: #6b7280; border-bottom: 1px solid #f0f2f5; }
+      td { padding: 10px; border-bottom: 1px solid #f9fafb; color: #1f2937; }
+    }
+  }
 }
 
 .page-btn {
@@ -499,13 +515,10 @@ const handlePageChange = (page) => {
   font-size: 11px;
 }
 
-.page-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.icon-btn {
+  background: transparent; border: none; cursor: pointer; font-size: 12px; color: #64748b;
+  &:hover { color: #3b82f6; }
 }
 
-.page-btn:hover:not(:disabled) {
-  background: #f9fafb;
-  border-color: #d1d5db;
-}
+.pure-text { padding: 16px; font-size: 14px; line-height: 1.6; color: #374151; }
 </style>
