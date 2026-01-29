@@ -34,6 +34,16 @@ const historyItems = ref<ChatHistoryItem[]>([
       { role: 'user', content: '查询2024年Q1的GMV' },
       { role: 'assistant', content: '2024年Q1 GMV为1200万', sql: 'SELECT SUM(gmv) FROM orders WHERE create_time BETWEEN "2024-01-01" AND "2024-03-31"', tableData: [], explanation: 'GMV统计包含所有有效订单' }
     ]
+  },
+  {
+    id: generateId(),
+    title: '库存预警概览',
+    time: '今天',
+    active: false,
+    messages: [
+      { role: 'user', content: '查询库存' },
+      { role: 'assistant', content: '2024年Q1 GMV为1200万', sql: 'SELECT SUM(gmv) FROM orders WHERE create_time BETWEEN "2024-01-01" AND "2024-03-31"', tableData: [], explanation: 'GMV统计包含所有有效订单' }
+    ]
   }
 ]);
 
