@@ -5,26 +5,10 @@ import CatalogPanel from './components/CatalogPanel.vue'
 import MessageBubble from './components/MessageBubble.vue'
 import Chathead from './components/Chathead.vue'
 import ChatInput from './components/ChatInput.vue'
-
+import { useChat } from './hooks/useChat'
 
 // --- 1. 数据定义 ---
-const messages = ref([
-  {
-    role: 'user',
-    content: '帮我查询本月品类销量 Top3'
-  },
-  {
-    role: 'assistant',
-    sql: 'SELECT category, SUM(sales) FROM orders GROUP BY category LIMIT 3',
-    tableData: [
-      { category: '手机数码', sales: 14500 },
-      { category: '家用电器', sales: 12000 },
-      { category: '美妆个护', sales: 9800 }
-    ],
-    explanation: '已为您查询到本月销量排名前三的品类。'
-  }
-])
-
+const { messages, loading, sendMessage } = useChat();
 const selectedKey = ref('ai')
 const chatScrollRef = ref<HTMLElement | null>(null)
 
@@ -50,7 +34,7 @@ const scrollToBottom = async () => {
 /**
  * 处理发送文本（核心业务逻辑）
  */
-const handleSendText = (data: { content: string; mode: string }) => {
+const handleSendText = async (data: { content: string; mode: string }) => {
   if (!data.content.trim()) return
 
   // 1. 将用户输入的消息推送到列表
@@ -67,18 +51,12 @@ const handleSendText = (data: { content: string; mode: string }) => {
   // 以后对接 API 就是：axios.post('/api/chat', { query: data.content, excludes: excludedTables.value })
 
   scrollToBottom()
+  // 用户消息立即上屏
 
-  // 2. 模拟 AI 回复
-  setTimeout(() => {
-    messages.value.push({
-      role: 'assistant',
-      content: '正在处理您的请求...',
-      explanation: excludedTables.value.length > 0 
-        ? `已为您过滤了以下表：${excludedTables.value.join(', ')}` 
-        : '当前未排除任何数据表。'
-    })
-    scrollToBottom()
-  }, 800)
+  // 调用 Hook 触发后端请求
+  // 这里不再处理 excludedTables，只传内容和模式
+  await sendMessage(data.content, data.mode);
+
 }
 
 /**
@@ -134,17 +112,17 @@ const handleModeChange = (mode: string) => {
       <div class="chat-scroll" ref="chatScrollRef" >
         <!-- 遍历渲染消息 -->
         <MessageBubble
-          v-for="(item, index) in messages"
-          :key="index"
-          :data="item"
-        />
+        v-for="(item, index) in messages"
+        :key="index"
+        :data="item"
+      />
         <div class="scroll-bottom-pad"></div>
       </div>
       
       <div class="chat-input">
         <ChatInput
           @mode-change="handleModeChange"
-          @send-text="handleSendText"
+          @send ="handleSendText":disabled="loading"
           @scroll-to-bottom="scrollToBottom"
         />
       </div>

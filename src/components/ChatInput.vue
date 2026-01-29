@@ -3,6 +3,7 @@ import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue';
 
 // 原有变量不变
 const inputValue = ref('');
+const emit = defineEmits(['send']);
 const chatListRef = ref<HTMLDivElement | null>(null);
 const showPopover = ref(false);
 const modes = reactive([
@@ -14,7 +15,7 @@ const currentMode = ref(modes[0]);
 // Web Speech API 相关变量
 const isListening = ref(false);
 const recognition = ref<SpeechRecognition | null>(null);
-const listeningTip = ref('语音输入 🎤');
+const listeningTip = ref('语音输入');
 const isLoading = ref(false);
 const isSupported = ref(true);
 // 新增：是否自动调用大模型（可配置）
@@ -35,8 +36,16 @@ const handleModeSelect = (value) => {
 const handleSendText = () => {
   if (!inputValue.value.trim()) return;
   // 手动发送时调用大模型
-  callLLMAPI(inputValue.value);
-};
+  // callLLMAPI(inputValue.value);
+  emit('send', {
+    content: inputValue.value,
+    mode: 'auto' // 或者其他你需要的参数
+  });
+  inputValue.value = '';
+
+
+};//ToDO：调用大模型
+
 const handleScrollToBottom = () => {
   if (chatListRef.value) {
     chatListRef.value.scrollTop = chatListRef.value.scrollHeight;
@@ -129,17 +138,23 @@ const callLLMAPI = async (prompt: string) => {
     });
 
     // 替换为你的真实大模型API地址
-    const response = await fetch('https://api.example.com/your-llm-api', {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_LLM_API_KEY}`
+        // 'Authorization': `Bearer ${import.meta.env.VITE_LLM_API_KEY}`，
+        "Authorization": "Bearer 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",
       },
       body: JSON.stringify({
-        prompt: prompt,
-        mode: currentMode.value.value,
-        temperature: 0.7,
-        max_tokens: 1000
+        "model": "deepseek/deepseek-r1-0528:free",
+        "messages": [
+      {
+        "role": "user",
+        "content": prompt
+      }
+    ]
+        // mode: currentMode.value.value,
+        //视使用的模型进行更改
       })
     });
 

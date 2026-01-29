@@ -1,105 +1,65 @@
+
 <template>
-  <div class="chat-container">
-    <!-- 1. 用户输入卡片（新增：明确用户角色） -->
-    <div class="user-card">
-      <div class="user-header">
-        <span class="user-tag">👤 我的提问</span>
+  <div v-if="data.role === 'ai'" class="ai-card">
+    <div class="sql-card" v-if="data.sql">
+      <div class="sql-header">
+        <span class="sql-title">⚡ 生成的SQL</span>
+        <button class="save-btn" @click="handleSaveAsFunction">保存为功能</button>
       </div>
-      <div class="user-content">
-        <p class="user-query">{{ userQuery || '请输入您的查询需求（如：查询本月各品类销量和GMV）' }}</p>
+      <div class="sql-code">
+        <pre>{{ data.sql }}</pre>
       </div>
     </div>
 
-    <!-- 2. AI 回应卡片（原内容整合，强化AI角色） -->
-    <div class="ai-card">
-      <div class="ai-header">
-        <span class="ai-tag">🤖 AI 回应</span>
+    <div class="result-card" v-if="data.tableData && data.tableData.length > 0">
+      <div class="result-header">
+        <span class="result-title">📊 查询结果 • 共 {{ data.tableData.length }} 条</span>
+        <button class="export-btn" @click="handleExport">导出</button>
       </div>
       
-      <!-- 原模块匹配信息 -->
-      <div class="info-card">
-        <div class="info-header">
-          <span class="mode-tag primary">自动模块匹配</span>
-          <span class="info-title">已自动匹配模块（表集合）</span>
-        </div>
-        <div class="info-content">
-          <p class="match-desc">匹配模块：<span class="highlight">销售分析模块</span></p>
-          <p class="table-desc">本次使用的表（示例）：</p>
-          <div class="table-tags">
-            <span class="table-tag" v-for="table in matchedTables" :key="table.name">
-              {{ table.name }} • {{ table.desc }}
-            </span>
-          </div>
-          <p class="flow-desc">
-            生成NL2SQL流程：先匹配模块 → 将该模块内表信息作为提示词上下文 → 在此上下文基础上生成SQL与结果展示
-          </p>
-        </div>
+      <div class="result-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th v-for="key in Object.keys(data.tableData[0])" :key="key">{{ key }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(item, index) in displayResultData" :key="index">
+              <td>{{ (currentPage - 1) * pageSize + index + 1 }}</td>
+              <td v-for="(val, vIndex) in Object.values(item)" :key="vIndex">{{ val }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
-      <!-- 原SQL代码块 -->
-      <div class="sql-card">
-        <div class="sql-header">
-          <span class="sql-title">⚡ 生成的SQL</span>
-          <button class="save-btn" @click="handleSaveAsFunction">保存为功能</button>
-        </div>
-        <div class="sql-code-scroll">
-          <div class="sql-code">
-            <pre v-if="generatedSQL">{{ generatedSQL }}</pre>
-            <pre v-else class="empty-tip">暂无生成的SQL</pre>
-          </div>
-        </div>
-      </div>
-
-      <!-- 原查询结果表格（修复分页逻辑） -->
-      <div class="result-card">
-        <div class="result-header">
-          <span class="result-title">📊 查询结果 (Mock) • 共 {{ resultData.length }} 条（演示）</span>
-          <button class="export-btn" @click="handleExport">导出</button>
-        </div>
-        <div class="result-table-scroll">
-          <div class="result-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Rank</th>
-                  <th>品类</th>
-                  <th>销量</th>
-                  <th>GMV</th>
-                </tr>
-              </thead>
-              <tbody>
-                <!-- 空值兜底 -->
-                <tr v-if="displayResultData.length === 0">
-                  <td colspan="4" class="empty-cell">暂无数据</td>
-                </tr>
-                <tr v-else v-for="(item, index) in displayResultData" :key="index">
-                  <td>{{ (currentPage - 1) * pageSize + index + 1 }}</td>
-                  <td>{{ item.category }}</td>
-                  <td>{{ item.sales_qty.toLocaleString() }}</td>
-                  <td>{{ item.gmv.toLocaleString() }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div class="pagination">
-          <span class="page-info">第 {{ currentPage }} 页 / 共 {{ totalPages }} 页</span>
-          <div class="page-buttons">
-            <button class="page-btn" :disabled="currentPage === 1" @click="handlePageChange(currentPage - 1)">上一页</button>
-            <button class="page-btn" :disabled="currentPage === totalPages" @click="handlePageChange(currentPage + 1)">下一页</button>
-          </div>
+      <div class="pagination">
+        <span class="page-info">第 {{ currentPage }} 页 / 共 {{ totalPages }} 页</span>
+        <div class="page-buttons">
+          <button @click="handlePageChange(currentPage - 1)" :disabled="currentPage === 1">上一页</button>
+          <button @click="handlePageChange(currentPage + 1)" :disabled="currentPage === totalPages">下一页</button>
         </div>
       </div>
     </div>
   </div>
 </template>
 
+
+
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue';
 
-// 新增：用户提问内容（可从外部传入/绑定输入框）
-const userQuery = ref('查询本月各品类的销量和GMV（按销量降序排列）');
 
+// 新增：用户提问内容（可从外部传入/绑定输入框）
+// const userQuery = ref('查询本月各品类的销量和GMV（按销量降序排列）');
+// 接收父组件循环传下来的消息对象
+defineProps({
+  data: {
+    type: Object,
+    required: true
+  }
+})
 // 模块匹配信息
 const matchedTables = reactive([
   { name: 'orders', desc: '订单主表：订单时间、用户、状态、总金额等' },

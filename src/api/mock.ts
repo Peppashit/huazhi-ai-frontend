@@ -30,3 +30,4 @@ export function getMockData(params) {
     data: params || {} // 兼容无参数的情况，默认传空对象
   })
 }
+
