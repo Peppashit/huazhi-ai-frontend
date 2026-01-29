@@ -3,7 +3,7 @@ import axios from 'axios';
 // 1. 创建 Axios 实例
 const service = axios.create({
   // 这里的 /api 会被 vite.config.ts 里的 proxy 转发到 http://localhost:3002
-  baseURL: '/api', 
+   baseURL: 'http://localhost:8084',
   timeout: 60000,
 });
 

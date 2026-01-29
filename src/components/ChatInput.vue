@@ -6,12 +6,20 @@ const emit = defineEmits(['send-text', 'scroll-to-bottom', 'mode-change']);
 
 // 2. 基础变量定义
 const inputValue = ref('');
+const emit = defineEmits(['send']);
+const chatListRef = ref<HTMLDivElement | null>(null);
 const showPopover = ref(false);
 const isLoading = ref(false); // 现在由 App.vue 控制，这里设为 false
 const isSupported = ref(true);
 const isListening = ref(false);
 const listeningTip = ref('语音输入 🎤');
 const autoCallLLM = ref(true);
+// Web Speech API 相关变量
+const isListening = ref(false);
+const recognition = ref<SpeechRecognition | null>(null);
+const listeningTip = ref('语音输入');
+const isLoading = ref(false);
+const isSupported = ref(true);
 
 const modes = reactive([
   { value: 'auto', label: '自动模块匹配', icon: 'A', desc: '系统自动判定最合适的模块。' },
@@ -23,6 +31,9 @@ const currentMode = ref(modes[0]);
 const handleSendText = () => {
   const text = inputValue.value.trim();
   if (!text) return;
+
+// 新增：是否自动调用大模型（可配置）
+const autoCallLLM = ref(true);
 
   // 将数据传给父组件 App.vue 处理
   emit('send-text', {
@@ -51,6 +62,26 @@ const handleModeSelect = (value: string) => {
     emit('mode-change', value);
   }
   showPopover.value = false;
+};
+const handleSendText = () => {
+  if (!inputValue.value.trim()) return;
+  // 手动发送时调用大模型
+  // callLLMAPI(inputValue.value);
+  emit('send', {
+    content: inputValue.value,
+    mode: 'auto' // 或者其他你需要的参数
+  });
+  inputValue.value = '';
+
+
+};//ToDO：调用大模型
+
+const handleScrollToBottom = () => {
+  if (chatListRef.value) {
+    chatListRef.value.scrollTop = chatListRef.value.scrollHeight;
+  } else {
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+  }
 };
 
 // 5. 语音识别逻辑
@@ -99,6 +130,56 @@ const toggleSpeechRecognition = () => {
 // 6. 回到底部
 const handleScrollToBottom = () => {
   emit('scroll-to-bottom');
+// 调用大模型API（修改：移除自动清空输入框）
+const callLLMAPI = async (prompt: string) => {
+  if (!prompt.trim()) return;
+  isLoading.value = true;
+
+  try {
+    window.onSendText?.({
+      content: prompt,
+      mode: currentMode.value.value
+    });
+
+    // 替换为你的真实大模型API地址
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        // 'Authorization': `Bearer ${import.meta.env.VITE_LLM_API_KEY}`，
+        "Authorization": "Bearer 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",
+      },
+      body: JSON.stringify({
+        "model": "deepseek/deepseek-r1-0528:free",
+        "messages": [
+      {
+        "role": "user",
+        "content": prompt
+      }
+    ]
+        // mode: currentMode.value.value,
+        //视使用的模型进行更改
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`大模型接口请求失败：${response.status}`);
+    }
+
+    const result = await response.json();
+    const llmReply = result.answer || result.content || '大模型未返回有效结果';
+    
+    window.onReceiveReply?.(llmReply);
+    handleScrollToBottom();
+
+  } catch (err) {
+    console.error('大模型调用失败：', err);
+    alert(`大模型调用失败：${(err as Error).message}`);
+  } finally {
+    isLoading.value = false;
+    // 注释掉：不再自动清空输入框，保留识别的文字
+    // inputValue.value = '';
+  }
 };
 
 // 7. 生命周期钩子

@@ -56,7 +56,10 @@ const handleChatChange = (chat: ChatHistoryItem) => {
   nextTick(() => scrollToBottom());
 };
 
-// --- 改造发送逻辑：消息存入当前激活对话 ---
+
+/**
+ * 处理发送文本（核心业务逻辑）
+ */
 const handleSendText = async (data: { content: string; mode: string }) => {
   if (!data.content.trim()) return
  // 新增：如果是新对话（标题为“新对话”），自动用第一条用户消息作为标题
@@ -69,6 +72,11 @@ const handleSendText = async (data: { content: string; mode: string }) => {
   currentChat.value.messages.push(userMessage);
   messages.value = [...currentChat.value.messages]; // 触发响应式更新
   scrollToBottom()
+  // 用户消息立即上屏
+
+  // 调用 Hook 触发后端请求
+  // 这里不再处理 excludedTables，只传内容和模式
+  await sendMessage(data.content, data.mode);
 
   try {
     const res = await getMockData({ query: data.content, mode: data.mode })
@@ -156,17 +164,17 @@ const handleModeChange = (mode: string) => {
       <div class="chat-scroll" ref="chatScrollRef" >
         <!-- 遍历渲染消息 -->
         <MessageBubble
-          v-for="(item, index) in messages"
-          :key="index"
-          :data="item"
-        />
+        v-for="(item, index) in messages"
+        :key="index"
+        :data="item"
+      />
         <div class="scroll-bottom-pad"></div>
       </div>
       
       <div class="chat-input">
         <ChatInput
           @mode-change="handleModeChange"
-          @send-text="handleSendText"
+          @send ="handleSendText":disabled="loading"
           @scroll-to-bottom="scrollToBottom"
         />
       </div>
