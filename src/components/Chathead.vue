@@ -28,6 +28,7 @@
 
 <script setup lang="ts">
 import { computed, watch } from 'vue';
+const outerContainerStyle = {}; 
 
 // 定义组件 Props，提供灵活的配置能力
 const props = defineProps({

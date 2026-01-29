@@ -5,26 +5,28 @@ import CatalogPanel from './components/CatalogPanel.vue'
 import MessageBubble from './components/MessageBubble.vue'
 import Chathead from './components/Chathead.vue'
 import ChatInput from './components/ChatInput.vue'
+import { getMockData } from './api/mock.ts' 
 
+// 定义对话类型（和HistorySidebar保持一致）
+interface ChatHistoryItem {
+  id: string;
+  title: string;
+  time: string;
+  active: boolean;
+  messages: Array<{ role: 'user' | 'assistant'; content: string; sql?: string; tableData?: any; explanation?: string }>;
+}
 
-// --- 1. 数据定义 ---
-const messages = ref([
-  {
-    role: 'user',
-    content: '帮我查询本月品类销量 Top3'
-  },
-  {
-    role: 'assistant',
-    sql: 'SELECT category, SUM(sales) FROM orders GROUP BY category LIMIT 3',
-    tableData: [
-      { category: '手机数码', sales: 14500 },
-      { category: '家用电器', sales: 12000 },
-      { category: '美妆个护', sales: 9800 }
-    ],
-    explanation: '已为您查询到本月销量排名前三的品类。'
-  }
-])
-
+// 当前激活的对话
+const currentChat = ref<ChatHistoryItem>({
+  id: '',
+  title: '新对话',
+  time: '今天',
+  active: true,
+  messages: []
+});
+// 简化：当前显示的消息列表（关联到激活对话的messages）
+const messages = ref(currentChat.value.messages);
+// 模型切换
 const selectedKey = ref('ai')
 const chatScrollRef = ref<HTMLElement | null>(null)
 
@@ -45,42 +47,62 @@ const scrollToBottom = async () => {
     })
   }
 }
+// --- 新增：接收历史对话切换事件 ---
+const handleChatChange = (chat: ChatHistoryItem) => {
+  currentChat.value = chat;
+  // 同步消息列表
+  messages.value = chat.messages;
+  // 切换后滚动到底部
+  nextTick(() => scrollToBottom());
+};
 
-
-/**
- * 处理发送文本（核心业务逻辑）
- */
-const handleSendText = (data: { content: string; mode: string }) => {
+// --- 改造发送逻辑：消息存入当前激活对话 ---
+const handleSendText = async (data: { content: string; mode: string }) => {
   if (!data.content.trim()) return
-
-  // 1. 将用户输入的消息推送到列表
-  messages.value.push({
-    role: 'user',
-    content: data.content
-  })
-
-  // 【核心逻辑】：在这里，你可以同时拿到“消息内容”和“排除名单”
-  console.log('--- 准备提交后端 ---')
-  console.log('用户问题:', data.content)
-  console.log('匹配模式:', data.mode)
-  console.log('排除名单 (Exclude):', excludedTables.value) 
-  // 以后对接 API 就是：axios.post('/api/chat', { query: data.content, excludes: excludedTables.value })
-
+ // 新增：如果是新对话（标题为“新对话”），自动用第一条用户消息作为标题
+  if (currentChat.value.title === '新对话') {
+    currentChat.value.title = data.content.length > 20 ? `${data.content.slice(0, 20)}...` : data.content;
+    currentChat.value.time = '今天'; // 更新时间
+  }
+  // 1. 先把用户消息添加到当前对话
+  const userMessage = { role: 'user', content: data.content };
+  currentChat.value.messages.push(userMessage);
+  messages.value = [...currentChat.value.messages]; // 触发响应式更新
   scrollToBottom()
 
-  // 2. 模拟 AI 回复
-  setTimeout(() => {
-    messages.value.push({
+  try {
+    const res = await getMockData({ query: data.content, mode: data.mode })
+    const serverData = res.data
+    
+    // 2. 添加AI消息到当前对话
+    const aiMessage = {
       role: 'assistant',
-      content: '正在处理您的请求...',
-      explanation: excludedTables.value.length > 0 
-        ? `已为您过滤了以下表：${excludedTables.value.join(', ')}` 
-        : '当前未排除任何数据表。'
-    })
-    scrollToBottom()
-  }, 800)
-}
+      content: serverData.explanation || '查询已完成，结果如下：',
+      sql: serverData.sql || '', 
+      tableData: serverData.tableData || serverData.results || [],
+      explanation: serverData.explanation || ''
+    };
+    currentChat.value.messages.push(aiMessage);
+    messages.value = [...currentChat.value.messages]; // 触发响应式更新
 
+  } catch (error) {
+    console.error('接口请求失败，进入备用模拟模式:', error)
+    const mockAiMessage = {
+      role: 'assistant',
+      content: `（模拟回复）关于“${data.content}”的查询结果如下：`,
+      sql: "SELECT category, SUM(sales) FROM mock_table GROUP BY category;",
+      tableData: [
+        { category: '电子产品', sales_qty: 1200, gmv: 500000 },
+        { category: '日用百货', sales_qty: 800, gmv: 20000 }
+      ],
+      explanation: "由于后端服务（localhost:8084）未启动，当前显示的是前端预设的模拟数据。"
+    };
+    currentChat.value.messages.push(mockAiMessage);
+    messages.value = [...currentChat.value.messages]; // 触发响应式更新
+  } finally {
+    scrollToBottom()
+  }
+};
 /**
  * 【连接点 B】：处理来自 CatalogPanel 的排除名单更新
  */
@@ -114,7 +136,7 @@ const handleModeChange = (mode: string) => {
   <div class="app">
     <!-- 左侧：历史记录 -->
     <aside class="sidebar">
-      <HistorySidebar />
+      <HistorySidebar @chat-change="handleChatChange" />
     </aside>
     
     <!-- 中间：主聊天区 -->
@@ -162,7 +184,6 @@ const handleModeChange = (mode: string) => {
 </template>
 
 <style lang="scss">
-/* 保持你原来的样式不变 */
 .app {
   height: 100vh;
   display: grid;
@@ -195,11 +216,13 @@ const handleModeChange = (mode: string) => {
     flex-shrink: 0;
   }
  .chat-scroll {
-    flex: 1; 
-    padding: 16px;
-    background: #f9fafb;
-    overflow-y: auto;
-    padding-bottom: 96px;
+  display: flex;
+  flex-direction: column; 
+  flex: 1; 
+  padding: 16px;
+  background: #f9fafb;
+  overflow-y: auto;
+  padding-bottom: 96px;
   }
   
   .chat-input {
