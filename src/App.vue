@@ -5,7 +5,7 @@ import CatalogPanel from './components/CatalogPanel.vue'
 import MessageBubble from './components/MessageBubble.vue'
 import Chathead from './components/Chathead.vue'
 import ChatInput from './components/ChatInput.vue'
-
+import { getMockData } from './api/mock.ts' 
 
 // --- 1. 数据定义 ---
 const messages = ref([
@@ -50,37 +50,58 @@ const scrollToBottom = async () => {
 /**
  * 处理发送文本（核心业务逻辑）
  */
-const handleSendText = (data: { content: string; mode: string }) => {
+/**
+ * 处理发送文本（核心业务逻辑）
+ */
+const handleSendText = async (data: { content: string; mode: string }) => {
   if (!data.content.trim()) return
 
-  // 1. 将用户输入的消息推送到列表
+  // 1. 先把用户说的话显示在界面右侧
   messages.value.push({
     role: 'user',
     content: data.content
   })
-
-  // 【核心逻辑】：在这里，你可以同时拿到“消息内容”和“排除名单”
-  console.log('--- 准备提交后端 ---')
-  console.log('用户问题:', data.content)
-  console.log('匹配模式:', data.mode)
-  console.log('排除名单 (Exclude):', excludedTables.value) 
-  // 以后对接 API 就是：axios.post('/api/chat', { query: data.content, excludes: excludedTables.value })
-
   scrollToBottom()
 
-  // 2. 模拟 AI 回复
-  setTimeout(() => {
+  try {
+    // 2. 调用你小组成员给的 mock 接口
+    // 传参给后端：根据接口定义，可能需要 query 等
+    const res = await getMockData({
+      query: data.content,
+      mode: data.mode
+    })
+
+    // 3. 拿到结果并显示在左侧 AI 气泡
+    // 注意：这里需要根据你后端返回的实际结构来取值
+    // 假设后端返回结构是 { data: { sql: '...', tableData: [...] } }
+    const serverData = res.data
+    
     messages.value.push({
       role: 'assistant',
-      content: '正在处理您的请求...',
-      explanation: excludedTables.value.length > 0 
-        ? `已为您过滤了以下表：${excludedTables.value.join(', ')}` 
-        : '当前未排除任何数据表。'
+      content: serverData.explanation || '查询已完成，结果如下：',
+      sql: serverData.sql || '', 
+      tableData: serverData.tableData || serverData.results || [], // 兼容不同字段名
+      explanation: serverData.explanation || ''
     })
-    scrollToBottom()
-  }, 800)
-}
 
+  } catch (error) {
+    // 4. 【关键防御】如果后端没启动（localhost:8084报错），手动模拟一套数据，不让界面卡死
+    console.error('接口请求失败，进入备用模拟模式:', error)
+    
+    messages.value.push({
+      role: 'assistant',
+      content: `（模拟回复）关于“${data.content}”的查询结果如下：`,
+      sql: "SELECT category, SUM(sales) FROM mock_table GROUP BY category;",
+      tableData: [
+        { category: '电子产品', sales_qty: 1200, gmv: 500000 },
+        { category: '日用百货', sales_qty: 800, gmv: 20000 }
+      ],
+      explanation: "由于后端服务（localhost:8084）未启动，当前显示的是前端预设的模拟数据。"
+    })
+  } finally {
+    scrollToBottom()
+  }
+}
 /**
  * 【连接点 B】：处理来自 CatalogPanel 的排除名单更新
  */
@@ -162,7 +183,6 @@ const handleModeChange = (mode: string) => {
 </template>
 
 <style lang="scss">
-/* 保持你原来的样式不变 */
 .app {
   height: 100vh;
   display: grid;
@@ -195,11 +215,13 @@ const handleModeChange = (mode: string) => {
     flex-shrink: 0;
   }
  .chat-scroll {
-    flex: 1; 
-    padding: 16px;
-    background: #f9fafb;
-    overflow-y: auto;
-    padding-bottom: 96px;
+  display: flex;
+  flex-direction: column; 
+  flex: 1; 
+  padding: 16px;
+  background: #f9fafb;
+  overflow-y: auto;
+  padding-bottom: 96px;
   }
   
   .chat-input {
