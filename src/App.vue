@@ -55,11 +55,25 @@ const handleChatChange = (chat: ChatHistoryItem) => {
   // 切换后滚动到底部
   nextTick(() => scrollToBottom());
 };
-
-
-/**
- * 处理发送文本（核心业务逻辑）
- */
+// 新增：创建新对话（核心修改）
+const createNewChat = () => {
+  // 1. 生成新对话对象
+  const newChat: ChatHistoryItem = {
+    id: generateId(),
+    title: '新对话',
+    time: '今天',
+    active: true,
+    messages: [] // 初始消息为空
+  };
+  // 2. 更新当前对话
+  currentChat.value = newChat;
+  messages.value = newChat.messages;
+  // 3. 同步到HistorySidebar的历史列表（关键步骤）
+  historySidebarRef.value?.addChatToHistory(newChat);
+  // 4. 滚动到底部
+  nextTick(() => scrollToBottom());
+};
+// --- 改造发送逻辑：消息存入当前激活对话 ---
 const handleSendText = async (data: { content: string; mode: string }) => {
   if (!data.content.trim()) return
  // 新增：如果是新对话（标题为“新对话”），自动用第一条用户消息作为标题
@@ -144,7 +158,9 @@ const handleModeChange = (mode: string) => {
   <div class="app">
     <!-- 左侧：历史记录 -->
     <aside class="sidebar">
-      <HistorySidebar @chat-change="handleChatChange" />
+      <HistorySidebar 
+      ref="historySidebarRef"
+      @chat-change="handleChatChange" />
     </aside>
     
     <!-- 中间：主聊天区 -->

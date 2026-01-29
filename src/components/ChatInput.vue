@@ -11,7 +11,7 @@ const isLoading = ref(false); // 现在由 App.vue 控制，这里设为 false
 const isSupported = ref(true);
 const isListening = ref(false);
 const listeningTip = ref('语音输入 🎤');
-const autoCallLLM = ref(true);
+const autoCallLLM = ref(false);
 
 const modes = reactive([
   { value: 'auto', label: '自动模块匹配', icon: 'A', desc: '系统自动判定最合适的模块。' },
@@ -137,6 +137,7 @@ onMounted(() => {
         class="input-textarea"
         placeholder="输入自然语言需求..."
         rows="1"
+
         @keyup.enter.exact.prevent="handleSendText"
       />
 
@@ -171,7 +172,7 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* 保持你原来的样式代码，不需要改动样式 */
+/* 样式无修改，保留原有样式 */
 .input-dialog-container {
   display: flex;
   align-items: flex-end;
@@ -194,17 +195,40 @@ onMounted(() => {
 }
 .input-textarea {
   width: 100%;
-  border: 1px solid #e5e7eb;
-  background: #fff;
+  border: none;
+  background: transparent;
   resize: none;
   font-size: 14px;
-  border-radius: 8px;
-  padding: 10px;
+  line-height: 1.5;
+  min-height: 46px;
   outline: none;
+  box-sizing: border-box;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.mode-tag {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.plus-btn {
+  width: 40px;
+  height: 40px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.plus-btn:hover {
+  background: #f9fafb;
 }
 .popover {
   position: absolute;
-  bottom: 100%;
+  top: -140px;
   left: 0;
   background: #fff;
   border-radius: 8px;
@@ -212,16 +236,108 @@ onMounted(() => {
   padding: 8px 0;
   z-index: 100;
   min-width: 240px;
-  margin-bottom: 10px;
 }
-.pop-item { display: flex; align-items: flex-start; gap: 8px; padding: 12px; cursor: pointer; }
-.pop-item:hover { background: #f9fafb; }
-.tag-pill.primary { background: #e0f2fe; color: #0ea5e9; padding: 2px 8px; border-radius: 12px; font-size: 12px; }
-.send-text-btn { padding: 8px 16px; border-radius: 8px; border: 1px solid #e5e7eb; cursor: pointer; }
-.send-voice-btn { padding: 8px 16px; border-radius: 20px; border: none; background: linear-gradient(90deg, #6366f1, #a855f7); color: white; cursor: pointer; }
-.send-voice-btn.listening { background: #ef4444; }
-.scroll-bottom-btn { width: 36px; height: 36px; border-radius: 50%; border: 1px solid #e5e7eb; background: #fff; cursor: pointer; }
-.ic { width: 24px; height: 24px; background: #eee; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; }
-.h { font-size: 14px; font-weight: bold; }
-.d { font-size: 12px; color: #666; }
+.pop-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.pop-item:hover {
+  background: #f9fafb;
+}
+.ic {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  background: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 500;
+}
+.h {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1f2937;
+  margin-bottom: 2px;
+}
+.d {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+.tag-pill {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.tag-pill.primary {
+  background: #e0f2fe;
+  color: #0ea5e9;
+}
+.send-text-btn {
+  padding: 8px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  color: #1f2937;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.send-text-btn:hover {
+  background: #f9fafb;
+}
+.send-text-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.send-voice-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 20px;
+  background: linear-gradient(90deg, #6366f1, #a855f7);
+  color: #fff;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.send-voice-btn.listening {
+  background: linear-gradient(90deg, #ef4444, #f87171);
+}
+.send-voice-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+.send-voice-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #e5e7eb;
+}
+.scroll-bottom-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #e5e7eb;
+  border-radius: 50%;
+  background: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+}
+.scroll-bottom-btn:hover {
+  background: #f9fafb;
+}
+.scroll-bottom-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 </style>

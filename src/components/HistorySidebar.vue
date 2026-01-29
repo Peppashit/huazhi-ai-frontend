@@ -34,6 +34,16 @@ const historyItems = ref<ChatHistoryItem[]>([
       { role: 'user', content: '查询2024年Q1的GMV' },
       { role: 'assistant', content: '2024年Q1 GMV为1200万', sql: 'SELECT SUM(gmv) FROM orders WHERE create_time BETWEEN "2024-01-01" AND "2024-03-31"', tableData: [], explanation: 'GMV统计包含所有有效订单' }
     ]
+  },
+  {
+    id: generateId(),
+    title: '库存预警概览',
+    time: '今天',
+    active: false,
+    messages: [
+      { role: 'user', content: '查询库存' },
+      { role: 'assistant', content: '2024年Q1 GMV为1200万', sql: 'SELECT SUM(gmv) FROM orders WHERE create_time BETWEEN "2024-01-01" AND "2024-03-31"', tableData: [], explanation: 'GMV统计包含所有有效订单' }
+    ]
   }
 ]);
 
@@ -51,18 +61,23 @@ const createNewChat = () => {
   const newChat: ChatHistoryItem = {
     id: generateId(),
     title: '新对话',
-    time: '今天',
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), // 精确时间
     active: true,
     messages: []
   };
-  // 取消所有对话的激活状态
-  historyItems.value.forEach(item => item.active = false);
-  // 添加新对话到列表
+  // 1. 取消所有对话的激活状态（遍历响应式数组）
+  historyItems.value.forEach(item => {
+    item.active = false; // 响应式对象属性修改，直接生效
+  });
+  // 2. 新增对话到列表头部（unshift 触发数组更新）
   historyItems.value.unshift(newChat);
-  // 更新激活ID
+  // 3. 更新激活ID
   activeChatId.value = newChat.id;
-  // 通知父组件切换到新对话
+  // 4. 同步过滤后的列表
+  filteredHistoryItems.value = [...historyItems.value];
+  // 5. 通知父组件 + 本地存储
   emit('chat-change', newChat);
+  saveToLocalStorage();
 };
 
 // 2. 切换历史对话
@@ -96,26 +111,27 @@ const confirmRename = (item: ChatHistoryItem) => {
   renameDialogId.value = '';
 };
 
-// 5. 删除对话
+// 🔥 修复：删除对话（用 filter 生成新数组，触发响应式）
 const deleteChat = (id: string, e: MouseEvent) => {
   e.stopPropagation();
-  const index = historyItems.value.findIndex(item => item.id === id);
-  if (index > -1) {
-    // 如果删除的是激活的对话，切换到第一个剩余对话
-    if (id === activeChatId.value) {
-      const remainingItems = historyItems.value.filter(item => item.id !== id);
-      if (remainingItems.length > 0) {
-        remainingItems[0].active = true;
-        activeChatId.value = remainingItems[0].id;
-        emit('chat-change', remainingItems[0]);
-      } else {
-        // 没有剩余对话，新建一个空对话
-        createNewChat();
-      }
+  // 1. 过滤掉要删除的对话（生成新数组，触发响应式更新）
+  const newHistoryItems = historyItems.value.filter(item => item.id !== id);
+  historyItems.value = newHistoryItems; // 重新赋值，触发UI刷新
+  // 2. 同步过滤后的列表
+  filteredHistoryItems.value = [...newHistoryItems];
+  // 3. 处理激活状态
+  if (id === activeChatId.value) {
+    if (newHistoryItems.length > 0) {
+      newHistoryItems[0].active = true;
+      activeChatId.value = newHistoryItems[0].id;
+      emit('chat-change', newHistoryItems[0]);
+    } else {
+      // 没有剩余对话，新建一个
+      createNewChat();
     }
-    // 删除对话
-    historyItems.value.splice(index, 1);
   }
+  // 4. 本地存储
+  saveToLocalStorage();
 };
 
 // 6. 过滤搜索结果
