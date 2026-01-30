@@ -1,124 +1,137 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+// 修复 3: 添加 onMounted 导入
+import { ref, watch, onMounted } from 'vue'
 
-// 定义单条对话的类型
+// --- 1. 类型与常量定义 ---
+const STORAGE_KEY = 'huazhi_ai_history_v1'
+
 interface ChatHistoryItem {
   id: string;
   title: string;
   time: string;
   active: boolean;
-  messages: Array<{ role: 'user' | 'assistant'; content: string; sql?: string; tableData?: any; explanation?: string }>;
+  messages: Array<{ 
+    role: 'user' | 'assistant'; 
+    content: string; 
+    sql?: string; 
+    tableData?: any; 
+    explanation?: string 
+  }>;
 }
 
-// 生成唯一ID（简易版，生产环境可换uuid）
+const emit = defineEmits<{
+  'chat-change': [chat: ChatHistoryItem];
+}>();
+
+// --- 2. 工具函数 ---
 const generateId = () => `chat_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
-// 初始化历史对话列表（带默认对话）
-const historyItems = ref<ChatHistoryItem[]>([
-  {
-    id: generateId(),
-    title: '本月品类销量 Top10',
-    time: '今天',
-    active: true,
-    messages: [
-      { role: 'user', content: '帮我查询本月品类销量 Top10' },
-      { role: 'assistant', content: '已为您查询到本月销量排名前十的品类。', sql: 'SELECT category, SUM(sales) FROM orders GROUP BY category LIMIT 10', tableData: [], explanation: '查询结果基于订单表统计' }
-    ]
-  },
-  {
-    id: generateId(),
-    title: '指定区间 GMV 查询',
-    time: '今天',
-    active: false,
-    messages: [
-      { role: 'user', content: '查询2024年Q1的GMV' },
-      { role: 'assistant', content: '2024年Q1 GMV为1200万', sql: 'SELECT SUM(gmv) FROM orders WHERE create_time BETWEEN "2024-01-01" AND "2024-03-31"', tableData: [], explanation: 'GMV统计包含所有有效订单' }
-    ]
-  },
-  {
-    id: generateId(),
-    title: '库存预警概览',
-    time: '今天',
-    active: false,
-    messages: [
-      { role: 'user', content: '查询库存' },
-      { role: 'assistant', content: '2024年Q1 GMV为1200万', sql: 'SELECT SUM(gmv) FROM orders WHERE create_time BETWEEN "2024-01-01" AND "2024-03-31"', tableData: [], explanation: 'GMV统计包含所有有效订单' }
-    ]
+// --- 3. 初始化数据逻辑 ---
+const getInitialData = (): ChatHistoryItem[] => {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    try {
+      return JSON.parse(saved);
+    } catch (e) {
+      console.error("解析本地存储失败:", e);
+    }
   }
-]);
 
-// 响应式：当前激活的对话ID
-const activeChatId = ref(historyItems.value[0].id);
-// 响应式：重命名相关状态
-const renameDialogId = ref(''); // 正在重命名的对话ID
-const renameInputValue = ref(''); // 重命名输入框值
-// 搜索关键词
-const searchQuery = ref('');
+  return [
+    {
+      id: generateId(),
+      title: '本月品类销量 Top10',
+      time: '今天',
+      active: true,
+      messages: [
+        { role: 'user', content: '帮我查询本月品类销量 Top10' },
+        { role: 'assistant', content: '已为您查询到本月销量排名前十的品类。', sql: 'SELECT category, SUM(sales) FROM orders GROUP BY category LIMIT 10', tableData: [], explanation: '查询结果基于订单表统计' }
+      ]
+    },
+    {
+      id: generateId(),
+      title: '指定区间 GMV 查询',
+      time: '今天',
+      active: false,
+      messages: [
+        { role: 'user', content: '查询2024年Q1的GMV' },
+        { role: 'assistant', content: '2024年Q1 GMV为1200万', sql: 'SELECT SUM(gmv) FROM orders WHERE create_time BETWEEN "2024-01-01" AND "2024-03-31"', tableData: [], explanation: 'GMV统计包含所有有效订单' }
+      ]
+    },
+    {
+      id: generateId(),
+      title: '库存预警概览',
+      time: '今天',
+      active: false,
+      messages: [
+        { role: 'user', content: '查询库存' },
+        { role: 'assistant', content: '2024年Q1 GMV为1200万', sql: 'SELECT SUM(gmv) FROM orders WHERE create_time BETWEEN "2024-01-01" AND "2024-03-31"', tableData: [], explanation: 'GMV统计包含所有有效订单' }
+      ]
+    }
+  ];
+};
 
-// --- 核心方法 ---
-// 1. 新建对话
+const handleLogout = () => {
+  if (confirm('确定要退出登录并清除本地缓存吗？')) {
+    localStorage.clear();
+    window.location.reload();
+  }
+};
+
+const historyItems = ref<ChatHistoryItem[]>(getInitialData());
+
+// --- 4. 持久化监听 ---
+watch(historyItems, (newVal) => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(newVal));
+}, { deep: true });
+
+// --- 5. 核心方法实现 ---
+
 const createNewChat = () => {
   const newChat: ChatHistoryItem = {
     id: generateId(),
     title: '新对话',
-    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), // 精确时间
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     active: true,
     messages: []
   };
-  // 1. 取消所有对话的激活状态（遍历响应式数组）
-  historyItems.value.forEach(item => {
-    item.active = false; // 响应式对象属性修改，直接生效
-  });
-  // 2. 新增对话到列表头部（unshift 触发数组更新）
+  historyItems.value.forEach(item => item.active = false);
   historyItems.value.unshift(newChat);
-  // 3. 更新激活ID
-  activeChatId.value = newChat.id;
-  // 4. 同步过滤后的列表
-  filteredHistoryItems.value = [...historyItems.value];
-  // 5. 通知父组件 + 本地存储
   emit('chat-change', newChat);
-  saveToLocalStorage();
 };
 
-const addChatToHistory = (newChat: ChatHistoryItem) => {
-  // 将新对话添加到列表的最前面（置顶）
-  historyItems.value.unshift(newChat);
-  
-  // 可选：将其他对话设为非激活，当前设为激活
-  historyItems.value.forEach(chat => {
-    chat.active = (chat.id === newChat.id);
-  });
-};
-
-// 🌟 关键步骤：使用 defineExpose 暴露给父组件
-defineExpose({
-  addChatToHistory
-});
-
-// 2. 切换历史对话
 const switchChat = (item: ChatHistoryItem) => {
-  // 取消所有激活状态
   historyItems.value.forEach(i => i.active = false);
-  // 激活当前对话
   item.active = true;
-  activeChatId.value = item.id;
-  // 通知父组件加载该对话的消息
   emit('chat-change', item);
 };
 
-// 3. 打开重命名输入框
-const openRenameInput = (item: ChatHistoryItem, e: MouseEvent) => {
-  e.stopPropagation(); // 防止触发切换对话
-  renameDialogId.value = item.id;
-  renameInputValue.value = item.title;
-  // 延迟让输入框获得焦点（DOM更新后）
-  setTimeout(() => {
-    const input = document.getElementById(`rename-input-${item.id}`);
-    input?.focus();
-  }, 0);
+// 修复 1 & 2: 增加对 undefined 的安全检查
+const deleteChat = (id: string, e: MouseEvent) => {
+  e.stopPropagation();
+  const index = historyItems.value.findIndex(item => item.id === id);
+  if (index !== -1) {
+    const wasActive = historyItems.value[index].active;
+    historyItems.value.splice(index, 1);
+    
+    if (wasActive) {
+      if (historyItems.value.length > 0) {
+        // 确保 historyItems.value[0] 存在才调用
+        switchChat(historyItems.value[0]);
+      } else {
+        createNewChat();
+      }
+    }
+  }
 };
 
-// 4. 确认重命名
+const renameDialogId = ref('');
+const renameInputValue = ref('');
+const openRenameInput = (item: ChatHistoryItem, e: MouseEvent) => {
+  e.stopPropagation();
+  renameDialogId.value = item.id;
+  renameInputValue.value = item.title;
+};
 const confirmRename = (item: ChatHistoryItem) => {
   if (renameInputValue.value.trim()) {
     item.title = renameInputValue.value.trim();
@@ -126,47 +139,41 @@ const confirmRename = (item: ChatHistoryItem) => {
   renameDialogId.value = '';
 };
 
-// 🔥 修复：删除对话（用 filter 生成新数组，触发响应式）
-const deleteChat = (id: string, e: MouseEvent) => {
-  e.stopPropagation();
-  // 1. 过滤掉要删除的对话（生成新数组，触发响应式更新）
-  const newHistoryItems = historyItems.value.filter(item => item.id !== id);
-  historyItems.value = newHistoryItems; // 重新赋值，触发UI刷新
-  // 2. 同步过滤后的列表
-  filteredHistoryItems.value = [...newHistoryItems];
-  // 3. 处理激活状态
-  if (id === activeChatId.value) {
-    if (newHistoryItems.length > 0) {
-      newHistoryItems[0].active = true;
-      activeChatId.value = newHistoryItems[0].id;
-      emit('chat-change', newHistoryItems[0]);
-    } else {
-      // 没有剩余对话，新建一个
-      createNewChat();
-    }
+const addChatToHistory = (newChat: ChatHistoryItem) => {
+  historyItems.value.forEach(chat => chat.active = false);
+  const exists = historyItems.value.find(c => c.id === newChat.id);
+  if (!exists) {
+    historyItems.value.unshift(newChat);
   }
-  // 4. 本地存储
-  saveToLocalStorage();
 };
 
-// 6. 过滤搜索结果
+const searchQuery = ref('');
 const filteredHistoryItems = ref<ChatHistoryItem[]>(historyItems.value);
-watch(searchQuery, (val) => {
-  if (val.trim()) {
+watch([searchQuery, historyItems], () => {
+  const q = searchQuery.value.trim().toLowerCase();
+  if (q) {
     filteredHistoryItems.value = historyItems.value.filter(item => 
-      item.title.toLowerCase().includes(val.trim().toLowerCase())
+      item.title.toLowerCase().includes(q)
     );
   } else {
     filteredHistoryItems.value = [...historyItems.value];
   }
-}, { immediate: true });
+}, { immediate: true, deep: true });
 
-// 定义向父组件的事件
-const emit = defineEmits<{
-  'chat-change': [chat: ChatHistoryItem];
-  'create-new-chat': [];
-}>();
+// 修复 1 & 2: 确保 activeChat 不为 undefined 再 emit
+onMounted(() => {
+  const activeChat = historyItems.value.find(i => i.active) || historyItems.value[0];
+  if (activeChat) {
+    emit('chat-change', activeChat);
+  }
+});
+
+defineExpose({
+  addChatToHistory,
+  createNewChat
+});
 </script>
+
 <template>
   <div class="sidebar-container">
     <!-- Logo + 新建对话按钮 -->
@@ -246,7 +253,7 @@ const emit = defineEmits<{
         <img src="@/assets/user.png" alt="用户头像" class="user-avatar" />
         <div class="name">李丽</div>
       </div>
-      <button class="logout" title="退出登录">
+      <button class="logout" @click="handleLogout" title="退出登录">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
           <polyline points="16 17 21 12 16 7"></polyline>
