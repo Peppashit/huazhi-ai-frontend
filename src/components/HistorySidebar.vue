@@ -156,7 +156,9 @@ const emit = defineEmits<{
   <div class="sidebar-container">
     <!-- Logo + 新建对话按钮 -->
     <div class="brand">
-      <div class="logo">H</div>
+      <div class="logo">
+      <img src="../assets/image copy.png" alt="logo" />
+      </div>
       <div class="brand-text">
         <h1>HUAZHI <span>AI</span></h1>
         <div class="tag">FREE</div>
@@ -327,23 +329,64 @@ const emit = defineEmits<{
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 8px 12px;
-   .brand-logo {
+  padding: 8px 6px;
+
+  .logo {
+    width: 32px;      // 这是圆圈的大小
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #a594ff 0%, #3ca7ff 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
     
-    height: 20px;      
-    width: auto;      
-    
-  
-    border-radius: 6px; 
-    object-fit: contain;
-    
-    vertical-align: middle; 
+    /* 关键改动：通过 padding 来控制图片缩放 */
+    /* 增加这个值，图片就会变小；减小这个值，图片就会变大 */
+    padding: 7px;     
+    box-sizing: border-box; // 必须加上这句，确保 padding 不会撑大圆圈
+
+    img {
+      /* 这里强制设置，防止它失控 */
+      width: 100% !important; 
+      height: 100% !important;
+      object-fit: contain;
+      display: block;
+    }
   }
-  h1 {
-    font-size: 18px; margin: 0; letter-spacing: 0.3px;
-    span { color: var(--brand); }
+
+  .brand-text {
+    display: flex;
+    align-items: center; // 确保文字和标签在一行居中
+    gap: 6px;
+
+    h1 {
+      font-size: 17px;
+      margin: 0;
+      font-weight: 800;
+      color: #1a2138;
+      white-space: nowrap;
+      line-height: 1;
+
+      span {
+        color: #3ca7ff;
+      }
+    }
+
+    .tag {
+      font-size: 17px;
+      color: #3ca7ff;
+      font-weight: 800;
+      border: 1px solid #3ca7ff;
+      padding: 1px 3px;
+      border-radius: 4px;
+      line-height: 1;
+      flex-shrink: 0;
+      /* 使用 scale 稍微缩小一下，看起来更精致 */
+      transform: scale(0.8);
+      transform-origin: left center;
+    }
   }
-  .tag { font-size: 10px; color: var(--muted); font-weight: 800; }
 }
 
 .side-search {
