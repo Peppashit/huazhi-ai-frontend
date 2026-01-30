@@ -90,62 +90,67 @@ const createNewChat = () => {
 };
 
 const handleSendText = async (data: { content: string; mode: string }) => {
-  console.log("!!! 按钮确实被点击了，函数已触发 !!!", data);
+  // 1. 基础拦截
   if (!data.content.trim() || loading.value) return;
-  
+
+  // 2. 自动更新标题（如果是新对话）
   if (currentChat.value.title === '新对话') {
     currentChat.value.title = data.content.slice(0, 15);
   }
 
-  // 修复类型错误：显式指定消息对象类型为 ChatMessage
+  // 3. 构建并添加用户消息到界面
   const userMessage: ChatMessage = { 
     role: 'user', 
     content: data.content 
   };
-  
   currentChat.value.messages.push(userMessage);
-  messages.value = [...currentChat.value.messages];
+  messages.value = [...currentChat.value.messages]; // 触发响应式更新
   
   await scrollToBottom();
   
-  loading.value = true; // 开始请求
+  // 4. 开始请求
+  loading.value = true; 
 
   try {
     const res = await getMockData({ query: data.content, mode: data.mode });
+    console.log("接口原始响应 res:", res); 
+
+    // --- 你刚才问的代码块开始 ---
     const serverData = res.data || res; 
-    console.log('检查解析后的数据:', serverData);
+
     const aiMessage: ChatMessage = {
       role: 'assistant',
       content: serverData.explanation || '查询结果如下：',
       sql: serverData.sql || '', 
-      tableData: serverData.tableData || serverData.results || [],
+      // 这里同时兼容后端返回的 tableData, results, 和 data 字段
+      tableData: serverData.tableData || serverData.results || serverData.data || [], 
       explanation: serverData.explanation || ''
     };
+    // --- 你刚才问的代码块结束 ---
     
-    console.log("正在发送请求，参数:", { query: data.content, mode: data.mode });
-    console.log("接口原始响应 res:", res);
-    console.log("接口数据主体 res.data:", res.data);
-
+    // 5. 将 AI 回复存入消息记录并更新界面
     currentChat.value.messages.push(aiMessage);
-    messages.value = [...currentChat.value.messages];
+    messages.value = [...currentChat.value.messages]; 
+    console.log("最终存入界面的表格数据:", aiMessage.tableData);
 
   } catch (error) {
-    console.error('接口请求失败，进入备用模拟模式:', error)
+    console.error('接口请求失败，进入备用模拟模式:', error);
+    // 备用逻辑
     const mockAiMessage: ChatMessage = {
       role: 'assistant',
-      content: `（模拟回复）关于“${data.content}”的查询结果如下：`,
-      sql: "SELECT category, SUM(sales) FROM mock_table GROUP BY category;",
+      content: `（模拟）服务请求失败，正在显示本地演示数据。`,
+      sql: "SELECT * FROM mock_table;",
       tableData: [
-        { category: '电子产品', sales_qty: 1200, gmv: 500000 },
-        { category: '日用百货', sales_qty: 800, gmv: 20000 }
+        { id: 'MOCK-01', info: '演示数据A' },
+        { id: 'MOCK-02', info: '演示数据B' }
       ],
-      explanation: "由于后端服务未启动，当前显示的是前端预设的模拟数据。"
+      explanation: "后端服务连不上，请检查 8084 端口是否开启了 mock.py。"
     };
     currentChat.value.messages.push(mockAiMessage);
     messages.value = [...currentChat.value.messages];
   } finally {
-    loading.value = false; // 结束请求
-    scrollToBottom();
+    loading.value = false; // 无论成功失败都关闭加载状态
+    await scrollToBottom();
   }
 };
 
