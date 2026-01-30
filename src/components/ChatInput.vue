@@ -1,211 +1,127 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted, nextTick } from 'vue';
 
-// 原有变量不变
+// 1. 定义要传给父组件的方法
+const emit = defineEmits(['send-text', 'scroll-to-bottom', 'mode-change']);
+
+// 2. 基础变量定义
 const inputValue = ref('');
-const emit = defineEmits(['send']);
-const chatListRef = ref<HTMLDivElement | null>(null);
 const showPopover = ref(false);
+const isLoading = ref(false); // 现在由 App.vue 控制，这里设为 false
+const isSupported = ref(true);
+const isListening = ref(false);
+const listeningTip = ref('语音输入 🎤');
+const autoCallLLM = ref(false);
+
 const modes = reactive([
-  { value: 'auto', label: '自动模块匹配', icon: 'A', desc: '系统自动判定最合适的模块（表集合）。' },
-  { value: 'manual', label: '手动模块选择', icon: 'M', desc: '显式选择一个或多个模块，直接跳过自动匹配。' }
+  { value: 'auto', label: '自动模块匹配', icon: 'A', desc: '系统自动判定最合适的模块。' },
+  { value: 'manual', label: '手动模块选择', icon: 'M', desc: '手动选择特定模块。' }
 ]);
 const currentMode = ref(modes[0]);
 
-// Web Speech API 相关变量
-const isListening = ref(false);
-const recognition = ref<SpeechRecognition | null>(null);
-const listeningTip = ref('语音输入');
-const isLoading = ref(false);
-const isSupported = ref(true);
-// 新增：是否自动调用大模型（可配置）
-const autoCallLLM = ref(true);
+// 3. 核心发送逻辑 (唯一且干净的 handleSendText)
+const handleSendText = () => {
+  const text = inputValue.value.trim();
+  if (!text) return;
 
-// 原有方法不变（togglePopover/handleModeSelect/handleScrollToBottom）
+  // 将数据传给父组件 App.vue 处理
+  emit('send-text', {
+    content: text,
+    mode: currentMode.value.value
+  });
+
+  // 发送后清空输入框
+  inputValue.value = '';
+  
+  // 触发滚动
+  nextTick(() => {
+    emit('scroll-to-bottom');
+  });
+};
+
+// 4. 模式切换逻辑
 const togglePopover = () => {
   showPopover.value = !showPopover.value;
 };
-const handleModeSelect = (value) => {
+
+const handleModeSelect = (value: string) => {
   const mode = modes.find(m => m.value === value);
   if (mode) {
     currentMode.value = mode;
-    window.onModeChange?.(value);
+    emit('mode-change', value);
   }
   showPopover.value = false;
 };
-const handleSendText = () => {
-  if (!inputValue.value.trim()) return;
-  // 手动发送时调用大模型
-  // callLLMAPI(inputValue.value);
-  emit('send', {
-    content: inputValue.value,
-    mode: 'auto' // 或者其他你需要的参数
-  });
-  inputValue.value = '';
 
-
-};//ToDO：调用大模型
-
-const handleScrollToBottom = () => {
-  if (chatListRef.value) {
-    chatListRef.value.scrollTop = chatListRef.value.scrollHeight;
-  } else {
-    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-  }
-};
-
-// 初始化 Web Speech API（核心修改：识别结果填充输入框）
+// 5. 语音识别逻辑
 const initSpeechRecognition = () => {
-  const SpeechRecognition = window.SpeechRecognition || (window as any).webkitSpeechRecognition;
+  const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
   if (!SpeechRecognition) {
     isSupported.value = false;
     listeningTip.value = '浏览器不支持 🚫';
-    alert('当前浏览器不支持语音识别，请使用Chrome/Edge浏览器');
     return;
   }
 
-  recognition.value = new SpeechRecognition();
-  recognition.value.lang = 'zh-CN';
-  recognition.value.continuous = false;
-  recognition.value.interimResults = false;
-  recognition.value.maxAlternatives = 1;
+  const recognition = new SpeechRecognition();
+  recognition.lang = 'zh-CN';
+  recognition.continuous = false;
+  recognition.interimResults = false;
 
-  // 核心修改：识别结果回调 → 填充输入框
-  recognition.value.onresult = (event: SpeechRecognitionEvent) => {
+  recognition.onresult = (event: any) => {
     const recognizedText = event.results[0][0].transcript;
-    // 1. 填充到输入框（核心需求）
     inputValue.value = recognizedText;
-    // 2. 输入框聚焦（优化体验）
-    nextTick(() => {
-      const textarea = document.querySelector('.input-textarea') as HTMLTextAreaElement;
-      textarea?.focus();
-    });
-    // 3. 可选：自动调用大模型（也可注释掉，改为手动发送）
+    
+    // 识别完成后，如果开启了自动调用，直接触发发送
     if (autoCallLLM.value) {
-      callLLMAPI(recognizedText);
+      handleSendText();
     }
   };
 
-  recognition.value.onstart = () => {
-    isListening.value = true;
-    listeningTip.value = '正在识别 🎧';
-  };
-
-  recognition.value.onend = () => {
-    isListening.value = false;
-    listeningTip.value = '语音输入 🎤';
-  };
-
-  recognition.value.onerror = (event: SpeechRecognitionErrorEvent) => {
-    isListening.value = false;
-    listeningTip.value = '语音输入 🎤';
-    console.error('语音识别错误：', event.error);
-    let errorMsg = '语音识别失败，请重试';
-    if (event.error === 'not-allowed') {
-      errorMsg = '麦克风权限被拒绝，请允许权限后重试';
-    } else if (event.error === 'no-speech') {
-      errorMsg = '未检测到语音，请重新说话';
-    }
-    alert(errorMsg);
-  };
+  recognition.onstart = () => { isListening.value = true; listeningTip.value = '正在识别 🎧'; };
+  recognition.onend = () => { isListening.value = false; listeningTip.value = '语音输入 🎤'; };
+  
+  return recognition;
 };
 
-// 触发/停止语音识别（无修改）
+let recognitionInstance: any = null;
+
 const toggleSpeechRecognition = () => {
-  if (!recognition.value) return;
+  if (!recognitionInstance) recognitionInstance = initSpeechRecognition();
+  if (!recognitionInstance) return;
 
   if (isListening.value) {
-    recognition.value.stop();
+    recognitionInstance.stop();
   } else {
-    try {
-      recognition.value.start();
-    } catch (err) {
-      console.error('启动语音识别失败：', err);
-      alert('启动识别失败，请检查麦克风权限');
-    }
+    recognitionInstance.start();
   }
 };
 
-// 调用大模型API（修改：移除自动清空输入框）
-const callLLMAPI = async (prompt: string) => {
-  if (!prompt.trim()) return;
-  isLoading.value = true;
-
-  try {
-    window.onSendText?.({
-      content: prompt,
-      mode: currentMode.value.value
-    });
-
-    // 替换为你的真实大模型API地址
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        // 'Authorization': `Bearer ${import.meta.env.VITE_LLM_API_KEY}`，
-        "Authorization": "Bearer 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",
-      },
-      body: JSON.stringify({
-        "model": "deepseek/deepseek-r1-0528:free",
-        "messages": [
-      {
-        "role": "user",
-        "content": prompt
-      }
-    ]
-        // mode: currentMode.value.value,
-        //视使用的模型进行更改
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`大模型接口请求失败：${response.status}`);
-    }
-
-    const result = await response.json();
-    const llmReply = result.answer || result.content || '大模型未返回有效结果';
-    
-    window.onReceiveReply?.(llmReply);
-    handleScrollToBottom();
-
-  } catch (err) {
-    console.error('大模型调用失败：', err);
-    alert(`大模型调用失败：${(err as Error).message}`);
-  } finally {
-    isLoading.value = false;
-    // 注释掉：不再自动清空输入框，保留识别的文字
-    // inputValue.value = '';
-  }
+// 6. 回到底部
+const handleScrollToBottom = () => {
+  emit('scroll-to-bottom');
 };
 
-// 生命周期（无修改）
+// 7. 生命周期钩子
 onMounted(() => {
-  initSpeechRecognition();
-  document.addEventListener('click', (e) => {
-    const plusBtn = document.querySelector('.plus-btn');
-    const popover = document.querySelector('.popover');
-    if (plusBtn && popover && !plusBtn.contains(e.target) && !popover.contains(e.target)) {
+  document.addEventListener('click', (e: MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (!target.closest('.plus-btn') && !target.closest('.popover')) {
       showPopover.value = false;
     }
   });
-});
-
-onUnmounted(() => {
-  if (recognition.value && isListening.value) {
-    recognition.value.stop();
-  }
-  recognition.value = null;
 });
 </script>
 
 <template>
   <div class="input-dialog-container">
-    <button class="plus-btn" @click="togglePopover" title="切换模块匹配模式" :disabled="isLoading">
+    <!-- 模式切换按钮 -->
+    <button class="plus-btn" @click="togglePopover" title="切换模式">
       +
     </button>
 
     <div class="input-container">
-      <div v-if="showPopover" class="popover" @click.outside="showPopover = false">
+      <!-- 弹出菜单 -->
+      <div v-if="showPopover" class="popover">
         <div v-for="mode in modes" :key="mode.value" class="pop-item" @click="handleModeSelect(mode.value)">
           <div class="ic">{{ mode.icon }}</div>
           <div>
@@ -215,13 +131,14 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- 输入框：识别后填充文字并聚焦 -->
+      <!-- 输入框 -->
       <textarea
         v-model="inputValue"
         class="input-textarea"
-        placeholder="输入自然语言需求（或点击右侧语音输入）"
+        placeholder="输入自然语言需求..."
         rows="1"
-        :disabled="isLoading || isListening"
+
+        @keyup.enter.exact.prevent="handleSendText"
       />
 
       <div class="mode-tag">
@@ -229,21 +146,26 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- 发送按钮：识别后可手动发送 -->
-    <button class="send-text-btn" @click="handleSendText" :disabled="isLoading || isListening || !inputValue.trim()">
+    <!-- 发送按钮 -->
+    <button 
+      class="send-text-btn" 
+      @click="handleSendText" 
+      :disabled="!inputValue.trim()"
+    >
       发送 👉
     </button>
 
+    <!-- 语音按钮 -->
     <button 
       class="send-voice-btn" 
       @click="toggleSpeechRecognition" 
-      :disabled="isLoading || !isSupported"
       :class="{ listening: isListening }"
+      :disabled="!isSupported"
     >
       {{ listeningTip }}
     </button>
 
-    <button class="scroll-bottom-btn" @click="handleScrollToBottom" title="回到底部" :disabled="isLoading">
+    <button class="scroll-bottom-btn" @click="handleScrollToBottom">
       ↓
     </button>
   </div>
