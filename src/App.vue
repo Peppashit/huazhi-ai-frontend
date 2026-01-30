@@ -7,33 +7,50 @@ import Chathead from './components/Chathead.vue'
 import ChatInput from './components/ChatInput.vue'
 import { getMockData } from './api/mock.ts' 
 
-// 定义对话类型（和HistorySidebar保持一致）
+// --- 1. 类型定义 ---
+
+// 提取单个消息的类型，方便复用
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  sql?: string;
+  tableData?: any;
+  explanation?: string;
+}
+
 interface ChatHistoryItem {
   id: string;
   title: string;
   time: string;
   active: boolean;
-  messages: Array<{ role: 'user' | 'assistant'; content: string; sql?: string; tableData?: any; explanation?: string }>;
+  messages: ChatMessage[];
 }
 
-// 当前激活的对话
+// --- 2. 响应式变量定义 ---
+
+// 修复错误：定义 historySidebarRef 以匹配模板中的 ref="historySidebarRef"
+const historySidebarRef = ref<InstanceType<typeof HistorySidebar> | null>(null);
+
+// 修复错误：定义 loading 变量
+const loading = ref(false);
+
 const currentChat = ref<ChatHistoryItem>({
-  id: '',
+  id: 'init-id', // 给个初始ID
   title: '新对话',
   time: '今天',
   active: true,
   messages: []
 });
-// 简化：当前显示的消息列表（关联到激活对话的messages）
+
 const messages = ref(currentChat.value.messages);
-// 模型切换
 const selectedKey = ref('ai')
 const chatScrollRef = ref<HTMLElement | null>(null)
-
-// 【连接点 A】：存储从右侧面板传过来的“排除名单”
 const excludedTables = ref<string[]>([])
 
-// --- 2. 核心逻辑处理 ---
+// --- 3. 工具函数 ---
+
+// 修复错误：定义 generateId 函数
+const generateId = () => Math.random().toString(36).substring(2, 11);
 
 /**
  * 滚动到底部
@@ -47,69 +64,74 @@ const scrollToBottom = async () => {
     })
   }
 }
-// --- 新增：接收历史对话切换事件 ---
+
+// --- 4. 逻辑处理函数 ---
+
 const handleChatChange = (chat: ChatHistoryItem) => {
   currentChat.value = chat;
-  // 同步消息列表
   messages.value = chat.messages;
-  // 切换后滚动到底部
   nextTick(() => scrollToBottom());
 };
-// 新增：创建新对话（核心修改）
+
+// 修复提示：createNewChat 现在可以通过某种方式被调用（例如由子组件触发）
 const createNewChat = () => {
-  // 1. 生成新对话对象
   const newChat: ChatHistoryItem = {
     id: generateId(),
     title: '新对话',
     time: '今天',
     active: true,
-    messages: [] // 初始消息为空
+    messages: [] 
   };
-  // 2. 更新当前对话
   currentChat.value = newChat;
   messages.value = newChat.messages;
-  // 3. 同步到HistorySidebar的历史列表（关键步骤）
+  // 调用 sidebar 的方法同步
   historySidebarRef.value?.addChatToHistory(newChat);
-  // 4. 滚动到底部
   nextTick(() => scrollToBottom());
 };
-// --- 改造发送逻辑：消息存入当前激活对话 ---
-const handleSendText = async (data: { content: string; mode: string }) => {
-  if (!data.content.trim()) return
- // 新增：如果是新对话（标题为“新对话”），自动用第一条用户消息作为标题
-  if (currentChat.value.title === '新对话') {
-    currentChat.value.title = data.content.length > 20 ? `${data.content.slice(0, 20)}...` : data.content;
-    currentChat.value.time = '今天'; // 更新时间
-  }
-  // 1. 先把用户消息添加到当前对话
-  const userMessage = { role: 'user', content: data.content };
-  currentChat.value.messages.push(userMessage);
-  messages.value = [...currentChat.value.messages]; // 触发响应式更新
-  scrollToBottom()
-  // 用户消息立即上屏
 
-  // 调用 Hook 触发后端请求
-  // 这里不再处理 excludedTables，只传内容和模式
-  await sendMessage(data.content, data.mode);
+const handleSendText = async (data: { content: string; mode: string }) => {
+  console.log("!!! 按钮确实被点击了，函数已触发 !!!", data);
+  if (!data.content.trim() || loading.value) return;
+  
+  if (currentChat.value.title === '新对话') {
+    currentChat.value.title = data.content.slice(0, 15);
+  }
+
+  // 修复类型错误：显式指定消息对象类型为 ChatMessage
+  const userMessage: ChatMessage = { 
+    role: 'user', 
+    content: data.content 
+  };
+  
+  currentChat.value.messages.push(userMessage);
+  messages.value = [...currentChat.value.messages];
+  
+  await scrollToBottom();
+  
+  loading.value = true; // 开始请求
 
   try {
-    const res = await getMockData({ query: data.content, mode: data.mode })
-    const serverData = res.data
-    
-    // 2. 添加AI消息到当前对话
-    const aiMessage = {
+    const res = await getMockData({ query: data.content, mode: data.mode });
+    const serverData = res.data || res; 
+    console.log('检查解析后的数据:', serverData);
+    const aiMessage: ChatMessage = {
       role: 'assistant',
-      content: serverData.explanation || '查询已完成，结果如下：',
+      content: serverData.explanation || '查询结果如下：',
       sql: serverData.sql || '', 
       tableData: serverData.tableData || serverData.results || [],
       explanation: serverData.explanation || ''
     };
+    
+    console.log("正在发送请求，参数:", { query: data.content, mode: data.mode });
+    console.log("接口原始响应 res:", res);
+    console.log("接口数据主体 res.data:", res.data);
+
     currentChat.value.messages.push(aiMessage);
-    messages.value = [...currentChat.value.messages]; // 触发响应式更新
+    messages.value = [...currentChat.value.messages];
 
   } catch (error) {
     console.error('接口请求失败，进入备用模拟模式:', error)
-    const mockAiMessage = {
+    const mockAiMessage: ChatMessage = {
       role: 'assistant',
       content: `（模拟回复）关于“${data.content}”的查询结果如下：`,
       sql: "SELECT category, SUM(sales) FROM mock_table GROUP BY category;",
@@ -117,34 +139,28 @@ const handleSendText = async (data: { content: string; mode: string }) => {
         { category: '电子产品', sales_qty: 1200, gmv: 500000 },
         { category: '日用百货', sales_qty: 800, gmv: 20000 }
       ],
-      explanation: "由于后端服务（localhost:8084）未启动，当前显示的是前端预设的模拟数据。"
+      explanation: "由于后端服务未启动，当前显示的是前端预设的模拟数据。"
     };
     currentChat.value.messages.push(mockAiMessage);
-    messages.value = [...currentChat.value.messages]; // 触发响应式更新
+    messages.value = [...currentChat.value.messages];
   } finally {
-    scrollToBottom()
+    loading.value = false; // 结束请求
+    scrollToBottom();
   }
 };
-/**
- * 【连接点 B】：处理来自 CatalogPanel 的排除名单更新
- */
+
 const handleUpdateExclude = (list: string[]) => {
   excludedTables.value = list
   console.log('App.vue 已同步最新的排除名单:', list)
 }
 
-/**
- * 【连接点 C】：处理来自 CatalogPanel 的“执行”操作
- */
 const handleExecuteFeature = (featureName: string) => {
-  // 当点击右侧“执行”时，直接调用 handleSendText 模拟发送
   handleSendText({
     content: `帮我执行：${featureName}`,
-    mode: 'auto' // 默认使用自动模式
+    mode: 'auto'
   })
 }
 
-// 模型切换逻辑
 const handleSegChange = (aiModel: string) => {
   console.log('切换模型：', aiModel)
 }
@@ -190,7 +206,8 @@ const handleModeChange = (mode: string) => {
       <div class="chat-input">
         <ChatInput
           @mode-change="handleModeChange"
-          @send ="handleSendText":disabled="loading"
+          @send-text="handleSendText"
+          :disabled="loading"
           @scroll-to-bottom="scrollToBottom"
         />
       </div>
@@ -216,7 +233,7 @@ const handleModeChange = (mode: string) => {
   padding: 22px 22px 18px;
   box-sizing: border-box;
   background: linear-gradient(180deg, #f7f9ff 0%, #f3f6ff 100%);
-  overflow-y: auto;
+  overflow-y: hidden;
 }
 
 .sidebar, .right {

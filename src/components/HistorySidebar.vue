@@ -80,6 +80,21 @@ const createNewChat = () => {
   saveToLocalStorage();
 };
 
+const addChatToHistory = (newChat: ChatHistoryItem) => {
+  // 将新对话添加到列表的最前面（置顶）
+  historyItems.value.unshift(newChat);
+  
+  // 可选：将其他对话设为非激活，当前设为激活
+  historyItems.value.forEach(chat => {
+    chat.active = (chat.id === newChat.id);
+  });
+};
+
+// 🌟 关键步骤：使用 defineExpose 暴露给父组件
+defineExpose({
+  addChatToHistory
+});
+
 // 2. 切换历史对话
 const switchChat = (item: ChatHistoryItem) => {
   // 取消所有激活状态

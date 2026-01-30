@@ -12,7 +12,9 @@ const isSupported = ref(true);
 const isListening = ref(false);
 const listeningTip = ref('语音输入 🎤');
 const autoCallLLM = ref(false);
-
+const props = defineProps({
+  disabled: Boolean
+});
 const modes = reactive([
   { value: 'auto', label: '自动模块匹配', icon: 'A', desc: '系统自动判定最合适的模块。' },
   { value: 'manual', label: '手动模块选择', icon: 'M', desc: '手动选择特定模块。' }
@@ -150,7 +152,7 @@ onMounted(() => {
     <button 
       class="send-text-btn" 
       @click="handleSendText" 
-      :disabled="!inputValue.trim()"
+      :disabled="!inputValue.trim()|| props.disabled"
     >
       发送 👉
     </button>

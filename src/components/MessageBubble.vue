@@ -1,3 +1,4 @@
+
 <template>
   <div :class="['message-wrapper', data.role === 'user' ? 'role-user' : 'role-assistant']">
     
@@ -65,7 +66,7 @@
               </thead>
               <tbody>
                 <tr v-for="(item, index) in displayResultData" :key="index">
-                  <td>{{ (currentPage - 1) * pageSize + index + 1 }}</td>
+                  <td>{{ getSerialIndex(index) }}</td>
                   <td v-for="(val, vIndex) in Object.values(item)" :key="vIndex">{{ val }}</td>
                 </tr>
               </tbody>
@@ -112,6 +113,11 @@ const defaultTables = reactive([
 const pageSize = ref(5); // 每页显示 5 条
 const currentPage = ref(1);
 
+const getSerialIndex = (index: string | number) => {
+  // 使用 Number() 强制转换，确保参与运算的是数字
+  const numIndex = Number(index);
+  return (currentPage.value - 1) * pageSize.value + numIndex + 1;
+};
 const totalPages = computed(() => {
   const list = props.data.tableData || [];
   return Math.ceil(list.length / pageSize.value) || 1;

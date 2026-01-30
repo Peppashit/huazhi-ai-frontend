@@ -1,4 +1,4 @@
-// src/api/recycleApi.js
+// src/api/mock.ts
 // 导入axios
 import axios from 'axios'
 
@@ -20,7 +20,7 @@ const service = axios.create({
  * @param {Object} params - 传递给后端的参数（比如conversation_id）
  * @returns {Promise} - 返回接口请求Promise对象，供页面层调用
  */
-export function getMockData(params) {
+export function getMockData(params: Record<string, any>) {
   return service({
     // 接口路径（拼接baseURL后，完整地址为 http://localhost:8084/app/execute）
     url: '/app/execute',
